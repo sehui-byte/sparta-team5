@@ -330,8 +330,8 @@ else:
             """, unsafe_allow_html=True)
 
             agree_marketing = st.checkbox("마케팅 활용에 동의합니다.", key="agree_marketing_checkbox_dialog")
-            user_id = st.text_input("아이디 입력 (선택사항)", key="user_id_input_dialog")
-            password = st.text_input("비밀번호 입력 (선택사항)", type="password", key="password_input_dialog")
+            user_id = st.text_input("아이디 입력", key="user_id_input_dialog")
+            password = st.text_input("비밀번호 입력", type="password", key="password_input_dialog")
 
             col1, col2 = st.columns(2) # Create columns for buttons
             with col1:
@@ -621,11 +621,14 @@ else:
                     
                     # x축 라벨 설정 (역량 이름)
                     ax.set_xticks(angles[:-1])  # 마지막 중복 각도 제외
+                    # 라벨을 그래프에서 더 멀리 위치시키기 위해 패딩 추가
                     ax.set_xticklabels(competency_names[:6], fontsize=12)  # 6개의 역량 이름
+                    # 라벨과 그래프 사이의 거리를 늘리기 위해 tick_params 사용
+                    ax.tick_params(axis='x', pad=15)  # x축 라벨에 패딩 추가
                     
                     # 그리드 설정
                     ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])  # 20%, 40%, 60%, 80%, 100%
-                    ax.set_rgrids([0.2, 0.4, 0.6, 0.8, 1.0], angle=0, labels=['20%', '40%', '60%', '80%', '100%'])
+                    ax.set_rgrids([0.2, 0.4, 0.6, 0.8, 1.0], angle=35, labels=['20%', '40%', '60%', '80%', '100%'])
                     
                     # 배경 스타일 설정
                     ax.grid(True, linestyle='-', alpha=0.7)
