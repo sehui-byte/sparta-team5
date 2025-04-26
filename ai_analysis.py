@@ -2,6 +2,7 @@ import os
 import json
 import streamlit as st
 from openai import OpenAI
+import re
 
 # The newest OpenAI model is "gpt-4o" which was released May 13, 2024.
 # Do not change this unless explicitly requested by the user.
@@ -125,6 +126,12 @@ def analyze_resume(resume_text, job_title, job_description, job_requirements):
         os.environ["OPENAI_API_KEY"] = st.secrets["API_KEY"]
         api_key = os.environ.get("OPENAI_API_KEY")
 
+        # 규칙 기반 평가를 사용할지 여부 결정 (규칙 기반 평가로 변경)
+        use_rule_based = True  # True이면 규칙 기반 평가, False이면 OpenAI API 사용
+
+        if use_rule_based:
+            return get_rule_based_analysis(resume_text, job_title)
+
         if not api_key:
             st.warning(
                 "OpenAI API 키를 찾을 수 없습니다. 데모용 테스트 응답을 사용합니다. 전체 기능을 사용하려면 OPENAI_API_KEY 환경 변수를 설정하세요."
@@ -217,6 +224,517 @@ def analyze_resume(resume_text, job_title, job_description, job_requirements):
     except Exception as e:
         st.error(f"AI 분석 중 오류 발생: {str(e)}")
         return None
+
+
+def get_rule_based_analysis(resume_text, job_title):
+    """
+    규칙 기반의 고정된 점수 평가 시스템을 사용하여 이력서를 분석합니다.
+    특정 키워드와 패턴에 따라 일관된 점수를 부여합니다.
+
+    Args:
+        resume_text (str): 이력서 텍스트
+        job_title (str): 직무 제목
+
+    Returns:
+        dict: 분석 결과
+    """
+    resume_lower = resume_text.lower()  # 대소문자 구분 없이 검색하기 위해 소문자로 변환
+
+    # 기본 결과 구조 설정
+    result = {
+        "success_rate": 0,
+        "strengths": [],
+        "improvement_areas": [],
+        "recommendations": [],
+        "competency_ratings": {},
+        "qualification_ratings": {
+            "academic": {"score": 0, "description": "", "meets_requirement": False},
+            "language": {"score": 0, "description": "", "meets_requirement": False},
+            "certificate": {"score": 0, "description": "", "meets_requirement": False},
+            "experience": {"score": 0, "description": "", "meets_requirement": False},
+            "skills": {"score": 0, "description": "", "meets_requirement": False}
+        }
+    }
+
+    # 1. 학력 평가
+    academic_score = 60  # 기본 점수
+    academic_description = "학력 정보가 충분하지 않습니다."
+    
+    # 대학교 등급별 점수 부여
+    top_universities = ["서울대", "연세대", "고려대", "카이스트"]
+    good_universities = ["성균관대", "한양대", "이화여대", "서강대", "중앙대", "경희대", "한국외대", "Kyung Hee University"]
+    
+    for univ in top_universities:
+        if univ in resume_text:
+            academic_score = 95
+            academic_description = f"{univ} 출신으로 최상위권 학력"
+            break
+    
+    if academic_score < 90:  # 최상위권이 아니라면 좋은 대학 체크
+        for univ in good_universities:
+            if univ in resume_text:
+                academic_score = 85
+                academic_description = f"{univ} 출신으로 우수한 학력"
+                break
+    
+    # 인서울 대학 키워드
+    if academic_score < 80 and ("인서울" in resume_text or "4년제" in resume_text):
+        academic_score = 75
+        academic_description = "인서울 4년제 대학 학력"
+    
+    # 학점 체크
+    gpa_patterns = [
+        r'학점[\s]*:[\s]*([0-9]+\.[0-9]+)',
+        r'GPA[\s]*:[\s]*([0-9]+\.[0-9]+)',
+        r'평점[\s]*:[\s]*([0-9]+\.[0-9]+)'
+    ]
+    
+    for pattern in gpa_patterns:
+        match = re.search(pattern, resume_text)
+        if match:
+            try:
+                gpa = float(match.group(1))
+                if gpa >= 4.0:
+                    academic_score += 10
+                    academic_description += ", 우수한 학점(4.0 이상)"
+                elif gpa >= 3.5:
+                    academic_score += 7
+                    academic_description += ", 양호한 학점(3.5 이상)"
+                elif gpa >= 3.0:
+                    academic_score += 5
+                    academic_description += ", 평균 이상 학점(3.0 이상)"
+            except:
+                pass
+            break
+    
+    # 전공 체크 (직무별)
+    if job_title == "IT 개발자":
+        relevant_majors = ["컴퓨터", "소프트웨어", "정보", "전산", "전자", "컴공"]
+        for major in relevant_majors:
+            if major in resume_text:
+                academic_score += 5
+                academic_description += f", {major} 관련 전공"
+                break
+    elif job_title == "인사 담당자":
+        relevant_majors = ["경영", "인사", "심리", "HR", "인적자원"]
+        for major in relevant_majors:
+            if major in resume_text:
+                academic_score += 5
+                academic_description += f", {major} 관련 전공"
+                break
+    
+    # 최종 학력 점수 조정 (최대 100점)
+    academic_score = min(100, academic_score)
+    
+    # 2. 어학 능력 평가
+    language_score = 50  # 기본 점수
+    language_description = "어학 능력 정보가 충분하지 않습니다."
+    
+    # 토익 점수 체크
+    toeic_patterns = [
+        r'토익[\s]*:[\s]*([0-9]+)',
+        r'TOEIC[\s]*:[\s]*([0-9]+)',
+        r'토익[\s]*([0-9]+)점'
+    ]
+    
+    for pattern in toeic_patterns:
+        match = re.search(pattern, resume_text)
+        if match:
+            try:
+                toeic = int(match.group(1))
+                if toeic >= 900:
+                    language_score = 95
+                    language_description = f"토익 {toeic}점으로 매우 우수"
+                elif toeic >= 850:
+                    language_score = 90
+                    language_description = f"토익 {toeic}점으로 우수"
+                elif toeic >= 800:
+                    language_score = 85
+                    language_description = f"토익 {toeic}점으로 상위권"
+                elif toeic >= 750:
+                    language_score = 80
+                    language_description = f"토익 {toeic}점으로 양호"
+                elif toeic >= 700:
+                    language_score = 75
+                    language_description = f"토익 {toeic}점으로 평균 이상"
+                elif toeic >= 650:
+                    language_score = 70
+                    language_description = f"토익 {toeic}점으로 보통"
+                elif toeic >= 600:
+                    language_score = 65
+                    language_description = f"토익 {toeic}점으로 기본 수준"
+                else:
+                    language_score = 60
+                    language_description = f"토익 {toeic}점으로 기초 수준"
+            except:
+                pass
+            break
+    
+    # 3. 자격증 평가
+    certificate_score = 60  # 기본 점수
+    certificate_description = "관련 자격증 정보가 충분하지 않습니다."
+    
+    # 직무별 관련 자격증
+    if job_title == "IT 개발자":
+        relevant_certs = ["정보처리기사", "SQLD", "AWS", "Azure", "Google", "리눅스마스터", 
+                          "네트워크", "보안", "정보보안", "CCNA", "클라우드"]
+        cert_count = 0
+        found_certs = []
+        
+        for cert in relevant_certs:
+            if cert in resume_text:
+                cert_count += 1
+                found_certs.append(cert)
+        
+        if cert_count > 0:
+            certificate_score = 60 + (cert_count * 10)
+            certificate_description = f"{', '.join(found_certs)} 자격증 보유"
+            
+    elif job_title == "인사 담당자":
+        relevant_certs = ["공인노무사", "인사관리사", "경영지도사", "CS", "사내강사", "NLP", "코칭"]
+        cert_count = 0
+        found_certs = []
+        
+        for cert in relevant_certs:
+            if cert in resume_text:
+                cert_count += 1
+                found_certs.append(cert)
+        
+        if cert_count > 0:
+            certificate_score = 60 + (cert_count * 10)
+            certificate_description = f"{', '.join(found_certs)} 자격증 보유"
+    
+    # 최종 자격증 점수 조정 (최대 100점)
+    certificate_score = min(100, certificate_score)
+    
+    # 4. 경험 평가
+    experience_score = 60  # 기본 점수
+    experience_description = "관련 경험 정보가 충분하지 않습니다."
+    
+    # 인턴 경험 체크
+    if "인턴" in resume_text:
+        experience_score += 10
+        experience_description = "인턴 경험 보유"
+    
+    # 프로젝트 경험 체크
+    if "프로젝트" in resume_text:
+        experience_score += 10
+        experience_description += ", 프로젝트 경험 보유"
+    
+    # 경력 연차 체크
+    year_patterns = [
+        r'([0-9]+)년차',
+        r'([0-9]+)[\s]*년[\s]*경력',
+        r'경력[\s]*:[\s]*([0-9]+)[\s]*년'
+    ]
+    
+    for pattern in year_patterns:
+        match = re.search(pattern, resume_text)
+        if match:
+            try:
+                years = int(match.group(1))
+                if years >= 5:
+                    experience_score += 25
+                    experience_description += f", {years}년 경력으로 경험 풍부"
+                elif years >= 3:
+                    experience_score += 20
+                    experience_description += f", {years}년 경력으로 경험 우수"
+                elif years >= 1:
+                    experience_score += 15
+                    experience_description += f", {years}년 경력"
+            except:
+                pass
+            break
+    
+    # 최종 경험 점수 조정 (최대 100점)
+    experience_score = min(100, experience_score)
+    
+    # 5. 스킬 평가
+    skills_score = 60  # 기본 점수
+    skills_description = "관련 스킬 정보가 충분하지 않습니다."
+    
+    # 직무별 관련 스킬
+    if job_title == "IT 개발자":
+        tech_skills = ["Java", "Python", "JavaScript", "React", "Node.js", "Spring", 
+                      "SQL", "AWS", "Git", "Docker", "kubernetes", "C#", "TypeScript"]
+        skill_count = 0
+        found_skills = []
+        
+        for skill in tech_skills:
+            if skill.lower() in resume_lower:
+                skill_count += 1
+                found_skills.append(skill)
+        
+        if skill_count > 0:
+            skills_score = 60 + (skill_count * 5)
+            skills_description = f"{', '.join(found_skills)} 스킬 보유"
+            
+    elif job_title == "인사 담당자":
+        hr_skills = ["인사관리", "채용", "교육", "평가", "급여", "복리후생", "노무", "조직문화", 
+                    "HR", "성과관리", "인재개발", "엑셀", "PowerPoint", "Word"]
+        skill_count = 0
+        found_skills = []
+        
+        for skill in hr_skills:
+            if skill.lower() in resume_lower:
+                skill_count += 1
+                found_skills.append(skill)
+        
+        if skill_count > 0:
+            skills_score = 60 + (skill_count * 5)
+            skills_description = f"{', '.join(found_skills)} 스킬 보유"
+    
+    # 최종 스킬 점수 조정 (최대 100점)
+    skills_score = min(100, skills_score)
+    
+    # 자격 요건 점수 설정
+    result["qualification_ratings"]["academic"] = {
+        "score": academic_score,
+        "description": academic_description,
+        "meets_requirement": academic_score >= 70
+    }
+    
+    result["qualification_ratings"]["language"] = {
+        "score": language_score,
+        "description": language_description,
+        "meets_requirement": language_score >= 70
+    }
+    
+    result["qualification_ratings"]["certificate"] = {
+        "score": certificate_score,
+        "description": certificate_description,
+        "meets_requirement": certificate_score >= 70
+    }
+    
+    result["qualification_ratings"]["experience"] = {
+        "score": experience_score,
+        "description": experience_description,
+        "meets_requirement": experience_score >= 70
+    }
+    
+    result["qualification_ratings"]["skills"] = {
+        "score": skills_score,
+        "description": skills_description,
+        "meets_requirement": skills_score >= 70
+    }
+    
+    # 역량 평가 - 직무별 설정
+    if job_title == "IT 개발자":
+        result["competency_ratings"] = {
+            "technical_skills": {
+                "score": skills_score,
+                "description": "기술적 역량: " + skills_description
+            },
+            "problem_solving": {
+                "score": max(65, min(90, skills_score - 5)),
+                "description": "문제 해결 능력: 프로젝트 경험에서 문제 해결 역량 확인"
+            },
+            "system_design": {
+                "score": max(60, min(85, skills_score - 10)),
+                "description": "시스템 설계 능력: 기본적인 시스템 설계 역량 보유"
+            },
+            "code_quality": {
+                "score": max(65, min(90, skills_score - 5)),
+                "description": "코드 품질: 코드 작성 및 품질 관리 역량 확인"
+            },
+            "teamwork": {
+                "score": 75,
+                "description": "팀 협업 능력: 프로젝트 및 업무 경험에서 협업 역량 확인"
+            },
+            "continuous_learning": {
+                "score": max(70, certificate_score),
+                "description": "지속적 학습 능력: 자격증 및 새로운 기술 습득 노력 확인"
+            }
+        }
+    elif job_title == "인사 담당자":
+        result["competency_ratings"] = {
+            "hr_knowledge": {
+                "score": max(skills_score, certificate_score),
+                "description": "인사 지식: 관련 지식 및 자격증 보유"
+            },
+            "recruitment": {
+                "score": skills_score if "채용" in resume_text else 65,
+                "description": "채용 역량: 채용 관련 경험 및 지식 보유"
+            },
+            "employee_relations": {
+                "score": 70,
+                "description": "직원 관계 관리: 조직 내 인간관계 및 관리 역량"
+            },
+            "organizational_development": {
+                "score": 70,
+                "description": "조직 개발 능력: 조직문화 및 개발 역량"
+            },
+            "communication": {
+                "score": 75,
+                "description": "커뮤니케이션 능력: 의사소통 및 협업 역량"
+            },
+            "data_analysis": {
+                "score": 65,
+                "description": "데이터 분석 능력: 기본적인 데이터 분석 역량"
+            }
+        }
+    else:
+        # 다른 직무에 대한 기본 역량 평가
+        result["competency_ratings"] = {
+            "job_knowledge": {
+                "score": max(skills_score, certificate_score),
+                "description": "직무 지식: 관련 지식 및 자격증 보유"
+            },
+            "communication": {
+                "score": 75,
+                "description": "커뮤니케이션 능력: 의사소통 및 협업 역량"
+            },
+            "problem_solving": {
+                "score": 70,
+                "description": "문제 해결 능력: 업무 경험에서의 문제 해결 역량"
+            },
+            "adaptability": {
+                "score": 75,
+                "description": "적응력: 새로운 환경 및 변화에 적응하는 역량"
+            },
+            "teamwork": {
+                "score": 75,
+                "description": "팀워크: 조직 내 협업 및 팀 프로젝트 역량"
+            }
+        }
+    
+    # 강점, 개선사항, 추천사항 설정 (직무별 분기)
+    if job_title == "IT 개발자":
+        # 강점
+        if skills_score >= 80:
+            result["strengths"].append("다양한 기술 스택에 대한 이해와 활용 능력이 우수함")
+        if certificate_score >= 75:
+            result["strengths"].append("관련 자격증 보유로 전문성을 입증함")
+        if academic_score >= 80:
+            result["strengths"].append("관련 전공과 우수한 학업 성취도를 보여줌")
+        if experience_score >= 75:
+            result["strengths"].append("실무 경험을 통한 실전 역량을 갖추고 있음")
+        if "프로젝트" in resume_text:
+            result["strengths"].append("다양한 프로젝트 경험을 보유하고 있음")
+        
+        # 개선사항
+        if skills_score < 75:
+            result["improvement_areas"].append("최신 기술 스택에 대한 경험 강화 필요")
+        if "테스트" not in resume_lower and "tdd" not in resume_lower:
+            result["improvement_areas"].append("테스트 방법론에 대한 경험 부족")
+        if certificate_score < 70:
+            result["improvement_areas"].append("관련 자격증 추가 취득으로 전문성 강화 필요")
+        if "sql" not in resume_lower and "데이터베이스" not in resume_lower:
+            result["improvement_areas"].append("데이터베이스 관련 기술 역량 보강 필요")
+        if "git" not in resume_lower:
+            result["improvement_areas"].append("버전 관리 시스템 경험 강조 필요")
+        
+        # 추천사항
+        if skills_score < 80:
+            result["recommendations"].append("최신 개발 트렌드에 맞는 기술 스택 학습 및 프로젝트 경험 추가")
+        if certificate_score < 75:
+            result["recommendations"].append("직무 관련 자격증 취득으로 전문성 강화")
+        if "테스트" not in resume_lower:
+            result["recommendations"].append("TDD 등 테스트 방법론 학습 및 프로젝트 적용 경험 추가")
+        if experience_score < 75:
+            result["recommendations"].append("오픈소스 프로젝트 참여 또는 포트폴리오 강화")
+        result["recommendations"].append("프로젝트 경험에서 문제 해결 과정을 구체적으로 기술하여 문제 해결 능력 강조")
+    
+    elif job_title == "인사 담당자":
+        # 강점
+        if skills_score >= 80:
+            result["strengths"].append("인사 관련 다양한 업무 영역에 대한 이해도가 높음")
+        if certificate_score >= 75:
+            result["strengths"].append("관련 자격증 보유로 전문성을 입증함")
+        if academic_score >= 80:
+            result["strengths"].append("관련 전공과 우수한 학업 성취도를 보여줌")
+        if experience_score >= 75:
+            result["strengths"].append("인사 분야 실무 경험을 통한 실전 역량 보유")
+        if "채용" in resume_text:
+            result["strengths"].append("채용 프로세스에 대한 이해 및 경험이 있음")
+        
+        # 개선사항
+        if skills_score < 75:
+            result["improvement_areas"].append("인사 관리 전반에 대한 경험 강화 필요")
+        if "노무" not in resume_lower and "법규" not in resume_lower:
+            result["improvement_areas"].append("노동법 및 인사 법규에 대한 지식 보강 필요")
+        if certificate_score < 70:
+            result["improvement_areas"].append("관련 자격증 추가 취득으로 전문성 강화 필요")
+        if "데이터" not in resume_lower and "분석" not in resume_lower:
+            result["improvement_areas"].append("데이터 기반 의사결정 역량 강화 필요")
+        if "조직문화" not in resume_lower:
+            result["improvement_areas"].append("조직문화 개선 관련 경험 부족")
+        
+        # 추천사항
+        if skills_score < 80:
+            result["recommendations"].append("인사 관리 다양한 영역(채용, 교육, 평가, 보상 등) 경험 확대")
+        if certificate_score < 75:
+            result["recommendations"].append("인사 관리사 또는 노무 관련 자격증 취득 고려")
+        if "노무" not in resume_lower:
+            result["recommendations"].append("노동법 및 인사 관련 법규 이해도 강화")
+        if "데이터" not in resume_lower:
+            result["recommendations"].append("데이터 분석 도구 활용 및 인사 지표 관리 경험 추가")
+        result["recommendations"].append("인사 제도 개선이나 조직문화 활동 경험을 구체적으로 기술")
+    
+    else:
+        # 다른 직무에 대한 기본 강점/개선사항/추천사항
+        result["strengths"] = [
+            "직무 관련 기본 지식과 역량 보유",
+            "학업 및 경험을 통한 역량 개발",
+            "기본적인 커뮤니케이션 능력 보유"
+        ]
+        
+        result["improvement_areas"] = [
+            "직무 특화 역량 강화 필요",
+            "관련 자격증 및 전문성 강화 필요",
+            "실무 경험 추가 필요"
+        ]
+        
+        result["recommendations"] = [
+            "직무 관련 실무 경험 확대",
+            "관련 자격증 취득으로 전문성 강화",
+            "직무 특화 기술 및 역량 개발",
+            "커뮤니케이션 및 협업 능력 강조"
+        ]
+    
+    # 최종 성공률 계산 (자격 요건 점수 평균)
+    qualification_scores = [
+        result["qualification_ratings"]["academic"]["score"],
+        result["qualification_ratings"]["language"]["score"],
+        result["qualification_ratings"]["certificate"]["score"],
+        result["qualification_ratings"]["experience"]["score"],
+        result["qualification_ratings"]["skills"]["score"]
+    ]
+    
+    result["success_rate"] = int(sum(qualification_scores) / len(qualification_scores))
+    
+    # 결과에 충분한 항목이 없는 경우 보완
+    while len(result["strengths"]) < 3:
+        if "직무에 대한 관심과 열정을 보여줌" not in result["strengths"]:
+            result["strengths"].append("직무에 대한 관심과 열정을 보여줌")
+        elif "기본적인 직무 역량 보유" not in result["strengths"]:
+            result["strengths"].append("기본적인 직무 역량 보유")
+        elif "학습 의지와 발전 가능성을 갖춤" not in result["strengths"]:
+            result["strengths"].append("학습 의지와 발전 가능성을 갖춤")
+        else:
+            result["strengths"].append("커뮤니케이션 및 협업 능력 보유")
+    
+    while len(result["improvement_areas"]) < 3:
+        if "실무 경험 강화 필요" not in result["improvement_areas"]:
+            result["improvement_areas"].append("실무 경험 강화 필요")
+        elif "전문성 및 자격증 보강 필요" not in result["improvement_areas"]:
+            result["improvement_areas"].append("전문성 및 자격증 보강 필요")
+        elif "직무 관련 기술 역량 향상 필요" not in result["improvement_areas"]:
+            result["improvement_areas"].append("직무 관련 기술 역량 향상 필요")
+        else:
+            result["improvement_areas"].append("문제 해결 능력 강화 필요")
+    
+    while len(result["recommendations"]) < 3:
+        if "실무 중심 포트폴리오 구성" not in result["recommendations"]:
+            result["recommendations"].append("실무 중심 포트폴리오 구성")
+        elif "직무 관련 교육 및 자격증 취득" not in result["recommendations"]:
+            result["recommendations"].append("직무 관련 교육 및 자격증 취득")
+        elif "직무 역량 강화를 위한 프로젝트 참여" not in result["recommendations"]:
+            result["recommendations"].append("직무 역량 강화를 위한 프로젝트 참여")
+        else:
+            result["recommendations"].append("이력서에 성과와 결과 중심의 경험 기술")
+    
+    return result
 
 
 def get_test_analysis(job_title):
