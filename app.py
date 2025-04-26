@@ -445,20 +445,18 @@ else:
                         bar_color = "#ffc107"  # 노란색
 
                     st.markdown(f'''
-                    <div class="qualification-item">
-                        <div class="qualification-header">
-                            <span class="qualification-name">{qual_name}</span>
-                            <span class="qualification-status" style="color: {status_color};">{status_icon} {status_text}</span>
+                    <div class="qualification-item" style="margin-bottom: 20px; height: 60px;">
+                        <div class="qualification-header" style="margin-bottom: 8px; height: 20px;">
+                            <span class="qualification-name" style="display: inline-block; padding: 0;">{qual_name}</span>
+                            <span class="qualification-status" style="color: {status_color}; float: right; padding: 0;">{status_icon} {status_text}</span>
                         </div>
-                        <div class="qualification-bar-container">
-                            <div class="qualification-bar" style="width: {rating_score}%; background-color: {bar_color};">
-                                <span class="qualification-score">{rating_score}%</span>
+                        <div class="qualification-bar-container" style="height: 24px; padding: 0; background-color: #f2f2f2; border-radius: 4px; overflow: hidden;">
+                            <div class="qualification-bar" style="width: {rating_score}%; background-color: {bar_color}; height: 24px; line-height: 24px; text-align: right; padding-right: 10px;">
+                                <span class="qualification-score" style="color: white; font-weight: bold;">{rating_score}%</span>
                             </div>
                         </div>
-                        <div class="qualification-desc">{rating_desc}</div>
                     </div>
-                    ''',
-                                unsafe_allow_html=True)
+                    ''', unsafe_allow_html=True)
 
             st.markdown('</div>', unsafe_allow_html=True)
 
@@ -553,18 +551,76 @@ else:
                     competency_names.append(competency_name)
                     competency_scores.append(rating_score)
                 
-                # 모든 역량 정보를 표로 표시 (클릭하면 상세 설명 표시)
-                with st.expander("모든 역량 점수 상세 보기"):
-                    for key, rating in competency_ratings.items():
+                # 자격요건평가(좌측)와 상세역량점수(우측) 레이아웃
+                qual_comp_col1, qual_comp_col2 = st.columns(2)
+                
+                # 자격요건평가 (좌측 컬럼)
+                with qual_comp_col1:
+                    st.markdown("<h3>자격요건 평가</h3>", unsafe_allow_html=True)
+                    for key, rating in qualification_ratings.items():
                         if isinstance(rating, dict):
                             rating_score = rating.get("score", 0)
-                            rating_desc = rating.get("description", "")
-                        elif isinstance(rating, (int, float)):
+                        elif isinstance(rating, int):
                             rating_score = rating
-                            rating_desc = ""
                         else:
                             rating_score = 0
-                            rating_desc = ""
+                        
+                        try:
+                            rating_score = int(rating_score)
+                        except (ValueError, TypeError):
+                            rating_score = 0
+                            
+                        qual_name = qualification_name_map.get(key, key)
+                        
+                        # 자격 요건 충족 여부에 따른 색상 설정
+                        meets_requirement = rating_score >= 70
+                        status_color = "#28a745" if meets_requirement else "#dc3545"
+                        status_text = "충족" if meets_requirement else "미충족"
+                        status_icon = "✓" if meets_requirement else "✗"
+                        
+                        # 점수에 따른 바 색상 계산
+                        if rating_score >= 80:
+                            bar_color = "#28a745"  # 녹색
+                        elif rating_score >= 60:
+                            bar_color = "#17a2b8"  # 파란색
+                        else:
+                            bar_color = "#ffc107"  # 노란색
+                            
+                        st.markdown(f'''
+                        <div class="qualification-item" style="margin-bottom: 20px; height: 60px;">
+                            <div class="qualification-header" style="margin-bottom: 8px; height: 20px;">
+                                <span class="qualification-name" style="display: inline-block; padding: 0;">{qual_name}</span>
+                                <span class="qualification-status" style="color: {status_color}; float: right; padding: 0;">{status_icon} {status_text}</span>
+                            </div>
+                            <div class="qualification-bar-container" style="height: 24px; padding: 0; background-color: #f2f2f2; border-radius: 4px; overflow: hidden;">
+                                <div class="qualification-bar" style="width: {rating_score}%; background-color: {bar_color}; height: 24px; line-height: 24px; text-align: right; padding-right: 10px;">
+                                    <span class="qualification-score" style="color: white; font-weight: bold;">{rating_score}%</span>
+                                </div>
+                            </div>
+                        </div>
+                        ''', unsafe_allow_html=True)
+                    
+                    # 자격요건 평가는 항목이 더 적으므로 여백 추가 (빈 div로 공간 확보)
+                    # 상세역량점수와 높이를 맞추기 위한 빈 공간 추가
+                    qualifications_count = len(qualification_ratings)
+                    competencies_count = min(len(competency_keys), 6)  # 최대 6개까지 표시
+                    
+                    # 상세역량점수가 더 많은 경우 차이만큼 여백 추가
+                    if competencies_count > qualifications_count:
+                        for i in range(competencies_count - qualifications_count):
+                            st.markdown('<div style="height: 60px;"></div>', unsafe_allow_html=True)
+                
+                # 상세역량점수 (우측 컬럼)
+                with qual_comp_col2:
+                    st.markdown("<h3>상세 역량 점수</h3>", unsafe_allow_html=True)
+                    for key in competency_keys:
+                        rating = competency_ratings[key]
+                        if isinstance(rating, dict):
+                            rating_score = rating.get("score", 0)
+                        elif isinstance(rating, (int, float)):
+                            rating_score = rating
+                        else:
+                            rating_score = 0
                             
                         try:
                             rating_score = int(rating_score)
@@ -582,112 +638,154 @@ else:
                             bar_color = "#ffc107"  # 노란색
                             
                         st.markdown(f"""
-                        <div class="competency-item">
-                            <div class="competency-name">{competency_name}</div>
-                            <div class="competency-bar-container">
-                                <div class="competency-bar" style="width: {rating_score}%; background-color: {bar_color};">
-                                    <span class="competency-score">{rating_score}%</span>
+                        <div class="competency-item" style="margin-bottom: 20px; height: 60px;">
+                            <div class="competency-name" style="margin-bottom: 8px; height: 20px; padding: 0;">{competency_name}</div>
+                            <div class="competency-bar-container" style="height: 24px; padding: 0; background-color: #f2f2f2; border-radius: 4px; overflow: hidden;">
+                                <div class="competency-bar" style="width: {rating_score}%; background-color: {bar_color}; height: 24px; line-height: 24px; text-align: right; padding-right: 10px;">
+                                    <span class="competency-score" style="color: white; font-weight: bold;">{rating_score}%</span>
                                 </div>
                             </div>
-                            <div class="competency-desc">{rating_desc}</div>
                         </div>
                         """, unsafe_allow_html=True)
                 
-                # 육각형 그래프 그리기
-                N = len(competency_names)
-                if N > 0:  # 데이터가 있는 경우에만 그래프 그리기
-                    # 데이터가 6개보다 적으면 6개까지 확장 (None으로 채움)
-                    while len(competency_names) < 6:
-                        competency_names.append("")
-                        competency_scores.append(None)
-                    
-                    # 각도 설정 (6각형)
-                    angles = np.linspace(0, 2*np.pi, 6, endpoint=False).tolist()
-                    
-                    # 데이터를 닫힌 다각형으로 만들기
-                    competency_scores_normalized = [score/100 if score is not None else 0 for score in competency_scores]
-                    competency_scores_normalized += competency_scores_normalized[:1]  # 첫 데이터를 마지막에 복제하여 닫힌 모양 만들기
-                    angles += angles[:1]  # 첫 각도를 마지막에 복제
-                    
-                    # 그래프 설정
-                    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-                    
-                    # 그래프 색상 및 라인 설정
-                    ax.plot(angles, competency_scores_normalized, 'o-', linewidth=2, color='#1a73e8')
-                    ax.fill(angles, competency_scores_normalized, alpha=0.25, color='#1a73e8')
-                    
-                    # y축 설정 (0부터 1까지)
-                    ax.set_ylim(0, 1)
-                    
-                    # x축 라벨 설정 (역량 이름)
-                    ax.set_xticks(angles[:-1])  # 마지막 중복 각도 제외
-                    # 라벨을 그래프에서 더 멀리 위치시키기 위해 패딩 추가
-                    ax.set_xticklabels(competency_names[:6], fontsize=12)  # 6개의 역량 이름
-                    # 라벨과 그래프 사이의 거리를 늘리기 위해 tick_params 사용
-                    ax.tick_params(axis='x', pad=15)  # x축 라벨에 패딩 추가
-                    
-                    # 그리드 설정
-                    ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])  # 20%, 40%, 60%, 80%, 100%
-                    ax.set_rgrids([0.2, 0.4, 0.6, 0.8, 1.0], angle=35, labels=['20%', '40%', '60%', '80%', '100%'])
-                    
-                    # 배경 스타일 설정
-                    ax.grid(True, linestyle='-', alpha=0.7)
-                    
-                    # 그래프 제목
-                    ax.set_title('핵심 역량 지표 육각형 그래프', size=15, color='#333', y=1.1)
-                    
-                    # 그래프 이미지를 바이트로 변환하여 HTML에 삽입
-                    buf = io.BytesIO()
-                    fig.savefig(buf, format='png', bbox_inches='tight', transparent=True)
-                    buf.seek(0)
-                    img_str = base64.b64encode(buf.read()).decode('utf-8')
-                    plt.close(fig)  # 메모리 누수 방지
-                    
-                    # 중앙 정렬된 이미지로 표시
-                    st.markdown(f"""
-                    <div style="display: flex; justify-content: center; margin: 20px 0;">
-                        <img src="data:image/png;base64,{img_str}" alt="역량 육각형 그래프" style="max-width: 100%; height: auto;">
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # 범례 표시
-                    st.markdown("""
-                    <div style="text-align: center; margin-bottom: 30px; color: #666; font-size: 14px;">
-                        그래프가 넓게 퍼질수록 해당 역량이 높다는 것을 의미합니다. 상세 내용은 '모든 역량 점수 상세 보기'에서 확인하세요.
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    st.warning("핵심 역량 데이터가 없습니다.")
+                # 추가 역량 정보 - 확장형 패널
+                with st.expander("모든 역량 점수 상세 보기"):
+                    for key, rating in competency_ratings.items():
+                        if key not in competency_keys:  # 메인 화면에 표시되지 않은 역량만 보여줌
+                            if isinstance(rating, dict):
+                                rating_score = rating.get("score", 0)
+                                rating_desc = rating.get("description", "")
+                            elif isinstance(rating, (int, float)):
+                                rating_score = rating
+                                rating_desc = ""
+                            else:
+                                rating_score = 0
+                                rating_desc = ""
+                                
+                            try:
+                                rating_score = int(rating_score)
+                            except (ValueError, TypeError):
+                                rating_score = 0
+                                
+                            competency_name = competency_name_map.get(key, key)
+                            
+                            # 점수에 따른 바 색상 계산
+                            if rating_score >= 80:
+                                bar_color = "#28a745"  # 녹색
+                            elif rating_score >= 60:
+                                bar_color = "#17a2b8"  # 파란색
+                            else:
+                                bar_color = "#ffc107"  # 노란색
+                                
+                            st.markdown(f"""
+                            <div class="competency-item">
+                                <div class="competency-name">{competency_name}</div>
+                                <div class="competency-bar-container">
+                                    <div class="competency-bar" style="width: {rating_score}%; background-color: {bar_color};">
+                                        <span class="competency-score">{rating_score}%</span>
+                                    </div>
+                                </div>
+                                <div class="competency-desc">{rating_desc}</div>
+                            </div>
+                            """, unsafe_allow_html=True)
                 
+                # 두 막대그래프와 다음 섹션 사이에 진회색 구분선 추가
+                st.markdown('<hr style="height: 1px; background-color: #555; border: none; margin: 30px 0px;">', unsafe_allow_html=True)
+                
+                # 역량종합분석(좌측)과 강점&개선영역(우측) 레이아웃
+                radar_strength_col1, radar_strength_col2 = st.columns(2)
+                
+                # 역량종합분석 방사형 그래프 (좌측 컬럼)
+                with radar_strength_col1:
+                    st.markdown("<h3>역량 종합 분석</h3>", unsafe_allow_html=True)
+                    
+                    # 육각형 그래프 그리기
+                    N = len(competency_names)
+                    if N > 0:  # 데이터가 있는 경우에만 그래프 그리기
+                        # 데이터가 6개보다 적으면 6개까지 확장 (None으로 채움)
+                        while len(competency_names) < 6:
+                            competency_names.append("")
+                            competency_scores.append(None)
+                        
+                        # 각도 설정 (6각형)
+                        angles = np.linspace(0, 2*np.pi, 6, endpoint=False).tolist()
+                        
+                        # 데이터를 닫힌 다각형으로 만들기
+                        competency_scores_normalized = [score/100 if score is not None else 0 for score in competency_scores]
+                        competency_scores_normalized += competency_scores_normalized[:1]  # 첫 데이터를 마지막에 복제하여 닫힌 모양 만들기
+                        angles += angles[:1]  # 첫 각도를 마지막에 복제
+                        
+                        # 그래프 설정
+                        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+                        
+                        # 그래프 색상 및 라인 설정
+                        ax.plot(angles, competency_scores_normalized, 'o-', linewidth=2, color='#1a73e8')
+                        ax.fill(angles, competency_scores_normalized, alpha=0.25, color='#1a73e8')
+                        
+                        # y축 설정 (0부터 1까지)
+                        ax.set_ylim(0, 1)
+                        
+                        # x축 라벨 설정 (역량 이름)
+                        ax.set_xticks(angles[:-1])  # 마지막 중복 각도 제외
+                        # 라벨을 그래프에서 더 멀리 위치시키기 위해 패딩 추가
+                        ax.set_xticklabels(competency_names[:6], fontsize=12)  # 6개의 역량 이름
+                        # 라벨과 그래프 사이의 거리를 늘리기 위해 tick_params 사용
+                        ax.tick_params(axis='x', pad=15)  # x축 라벨에 패딩 추가
+                        
+                        # 그리드 설정
+                        ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])  # 20%, 40%, 60%, 80%, 100%
+                        ax.set_rgrids([0.2, 0.4, 0.6, 0.8, 1.0], angle=35, labels=['20%', '40%', '60%', '80%', '100%'])
+                        
+                        # 배경 스타일 설정
+                        ax.grid(True, linestyle='-', alpha=0.7)
+                        
+                        # 그래프 제목
+                        ax.set_title('핵심 역량 지표 육각형 그래프', size=15, color='#333', y=1.1)
+                        
+                        # 그래프 이미지를 바이트로 변환하여 HTML에 삽입
+                        buf = io.BytesIO()
+                        fig.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+                        buf.seek(0)
+                        img_str = base64.b64encode(buf.read()).decode('utf-8')
+                        plt.close(fig)  # 메모리 누수 방지
+                        
+                        # 이미지 표시
+                        st.markdown(f"""
+                        <div style="display: flex; justify-content: center; margin: 20px 0;">
+                            <img src="data:image/png;base64,{img_str}" alt="역량 육각형 그래프" style="max-width: 100%; height: auto;">
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # 범례 표시
+                        st.markdown("""
+                        <div style="text-align: center; margin-bottom: 10px; color: #666; font-size: 14px;">
+                            그래프가 넓게 퍼질수록 해당 역량이 높다는 것을 의미합니다.
+                        </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.warning("핵심 역량 데이터가 없습니다.")
+                
+                # 강점 & 개선영역 (우측 컬럼)
+                with radar_strength_col2:
+                    st.markdown("<h3>강점 & 개선영역</h3>", unsafe_allow_html=True)
+                    
+                    # 강점
+                    st.markdown('<div class="analysis-section strengths">', unsafe_allow_html=True)
+                    st.markdown("#### 강점", unsafe_allow_html=True)
+                    strengths = analysis_result.get("strengths", [])
+                    for strength in strengths:
+                        st.markdown(f'<div class="analysis-item">✓ {strength}</div>', unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+                    # 개선 영역
+                    st.markdown('<div class="analysis-section improvements">', unsafe_allow_html=True)
+                    st.markdown("#### 개선 영역", unsafe_allow_html=True)
+                    improvement_areas = analysis_result.get("improvement_areas", [])
+                    for area in improvement_areas:
+                        st.markdown(f'<div class="analysis-item">△ {area}</div>', unsafe_allow_html=True)
+                    st.markdown('</div>', unsafe_allow_html=True)
+            
             st.markdown('</div>', unsafe_allow_html=True)
-
-            # 강점과 개선 영역
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.markdown(
-                    '<div class="analysis-section strengths">',
-                    unsafe_allow_html=True)
-                st.markdown("### 강점")
-                strengths = analysis_result.get("strengths", [])
-                for strength in strengths:
-                    st.markdown(
-                        f'<div class="analysis-item">✓ {strength}</div>',
-                        unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            with col2:
-                st.markdown(
-                    '<div class="analysis-section improvements">',
-                    unsafe_allow_html=True)
-                st.markdown("### 개선 영역")
-                improvement_areas = analysis_result.get(
-                    "improvement_areas", [])
-                for area in improvement_areas:
-                    st.markdown(
-                        f'<div class="analysis-item">△ {area}</div>',
-                        unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
 
             # 맞춤형 추천사항
             st.markdown('<div class="recommendations">',
