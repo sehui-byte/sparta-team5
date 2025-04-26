@@ -262,7 +262,7 @@ def get_rule_based_analysis(resume_text, job_title):
     
     # 대학교 등급별 점수 부여
     top_universities = ["서울대", "연세대", "고려대", "카이스트"]
-    good_universities = ["성균관대", "한양대", "이화여대", "서강대", "중앙대", "경희대", "한국외대", "Kyung Hee University"]
+    good_universities = ["성균관대", "한양대", "이화여대", "서강대", "중앙대", "경희대"]
     
     for univ in top_universities:
         if univ in resume_text:
