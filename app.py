@@ -377,10 +377,10 @@ else:
                 f'<div class="success-rate">예상 합격률: <span class="rate-value">{success_rate}%</span></div>',
                 unsafe_allow_html=True)
 
-            # 자격 요건 평가 표시
-            st.markdown('<div class="qualification-section">',
-                        unsafe_allow_html=True)
-            st.markdown("## 자격 요건 평가", unsafe_allow_html=True)
+            # # 자격 요건 평가 표시
+            # st.markdown('<div class="qualification-section">',
+            #             unsafe_allow_html=True)
+            # st.markdown("## 자격 요건 평가", unsafe_allow_html=True)
 
             qualification_ratings = analysis_result.get(
                 "qualification_ratings", {})
@@ -394,75 +394,76 @@ else:
                     "skills": "스킬/기술"
                 }
 
-                for key, rating in qualification_ratings.items():
-                    if isinstance(rating, dict):
-                        rating_score = rating.get("score", 0)
-                    elif isinstance(rating, int):
-                        rating_score = rating
-                    else:
-                        rating_score = 0  # 예상치 못한 타입 대비
+                # 이 부분은 제거하고, 아래 컬럼 레이아웃에서 표시될 것이므로 주석 처리
+                # for key, rating in qualification_ratings.items():
+                #     if isinstance(rating, dict):
+                #         rating_score = rating.get("score", 0)
+                #     elif isinstance(rating, int):
+                #         rating_score = rating
+                #     else:
+                #         rating_score = 0  # 예상치 못한 타입 대비
 
-                    # Ensure rating_score is an integer
-                    try:
-                        rating_score = int(rating_score)
-                    except (ValueError, TypeError):
-                        rating_score = 0  # Default to 0 if conversion fails
+                #     # Ensure rating_score is an integer
+                #     try:
+                #         rating_score = int(rating_score)
+                #     except (ValueError, TypeError):
+                #         rating_score = 0  # Default to 0 if conversion fails
 
-                    if isinstance(rating, dict):
-                        rating_desc = rating.get("description", "")
-                        meets_requirement = rating.get(
-                            "meets_requirement", False)
-                    elif isinstance(rating, int):
-                        rating_desc = ""  # Assign an empty string if rating is an integer
-                        meets_requirement = True  # Assume not met if rating is an integer
-                    else:
-                        rating_desc = ""
-                        meets_requirement = True
+                #     if isinstance(rating, dict):
+                #         rating_desc = rating.get("description", "")
+                #         meets_requirement = rating.get(
+                #             "meets_requirement", False)
+                #     elif isinstance(rating, int):
+                #         rating_desc = ""  # Assign an empty string if rating is an integer
+                #         meets_requirement = True  # Assume not met if rating is an integer
+                #     else:
+                #         rating_desc = ""
+                #         meets_requirement = True
                     
-                    # Only try to get description if rating is a dict
-                    if isinstance(rating, dict):
-                        rating_desc = rating.get("description", "")
-                        meets_requirement = rating.get("meets_requirement", False)
+                #     # Only try to get description if rating is a dict
+                #     if isinstance(rating, dict):
+                #         rating_desc = rating.get("description", "")
+                #         meets_requirement = rating.get("meets_requirement", False)
                     
-                    # 70점 이상이면 자격 요건 충족으로 처리
-                    if rating_score >= 70:
-                        meets_requirement = True
+                #     # 70점 이상이면 자격 요건 충족으로 처리
+                #     if rating_score >= 70:
+                #         meets_requirement = True
 
-                    qual_name = qualification_name_map.get(
-                        key, key)
+                #     qual_name = qualification_name_map.get(
+                #         key, key)
 
-                    # 자격 요건 충족 여부에 따른 색상 설정
-                    status_color = "#28a745" if meets_requirement else "#dc3545"  # 녹색 또는 빨간색
-                    status_text = "충족" if meets_requirement else "미충족"
-                    status_icon = "✓" if meets_requirement else "✗"
+                #     # 자격 요건 충족 여부에 따른 색상 설정
+                #     status_color = "#28a745" if meets_requirement else "#dc3545"  # 녹색 또는 빨간색
+                #     status_text = "충족" if meets_requirement else "미충족"
+                #     status_icon = "✓" if meets_requirement else "✗"
 
-                    # 점수에 따른 바 색상 계산
-                    if rating_score >= 80:
-                        bar_color = "#28a745"  # 녹색
-                    elif rating_score >= 60:
-                        bar_color = "#17a2b8"  # 파란색
-                    else:
-                        bar_color = "#ffc107"  # 노란색
+                #     # 점수에 따른 바 색상 계산
+                #     if rating_score >= 80:
+                #         bar_color = "#28a745"  # 녹색
+                #     elif rating_score >= 60:
+                #         bar_color = "#17a2b8"  # 파란색
+                #     else:
+                #         bar_color = "#ffc107"  # 노란색
 
-                    st.markdown(f'''
-                    <div class="qualification-item" style="margin-bottom: 20px; height: 60px;">
-                        <div class="qualification-header" style="margin-bottom: 8px; height: 20px;">
-                            <span class="qualification-name" style="display: inline-block; padding: 0;">{qual_name}</span>
-                            <span class="qualification-status" style="color: {status_color}; float: right; padding: 0;">{status_icon} {status_text}</span>
-                        </div>
-                        <div class="qualification-bar-container" style="height: 24px; padding: 0; background-color: #f2f2f2; border-radius: 4px; overflow: hidden;">
-                            <div class="qualification-bar" style="width: {rating_score}%; background-color: {bar_color}; height: 24px; line-height: 24px; text-align: right; padding-right: 10px;">
-                                <span class="qualification-score" style="color: white; font-weight: bold;">{rating_score}%</span>
-                            </div>
-                        </div>
-                    </div>
-                    ''', unsafe_allow_html=True)
+                #     st.markdown(f'''
+                #     <div class="qualification-item" style="margin-bottom: 20px; height: 60px;">
+                #         <div class="qualification-header" style="margin-bottom: 8px; height: 20px;">
+                #             <span class="qualification-name" style="display: inline-block; padding: 0;">{qual_name}</span>
+                #             <span class="qualification-status" style="color: {status_color}; float: right; padding: 0;">{status_icon} {status_text}</span>
+                #         </div>
+                #         <div class="qualification-bar-container" style="height: 24px; padding: 0; background-color: #f2f2f2; border-radius: 4px; overflow: hidden;">
+                #             <div class="qualification-bar" style="width: {rating_score}%; background-color: {bar_color}; height: 24px; line-height: 24px; text-align: right; padding-right: 10px;">
+                #                 <span class="qualification-score" style="color: white; font-weight: bold;">{rating_score}%</span>
+                #             </div>
+                #         </div>
+                #     </div>
+                #     ''', unsafe_allow_html=True)
 
             st.markdown('</div>', unsafe_allow_html=True)
 
             # 핵심 역량 지표 평가 표시
-            st.markdown('<div class="competency-section">',
-                        unsafe_allow_html=True)
+            # st.markdown('<div class="competency-section">',
+            #             unsafe_allow_html=True)
             st.markdown("## 핵심 역량 지표 평가", unsafe_allow_html=True)
 
             competency_ratings = analysis_result.get(
