@@ -34,6 +34,16 @@ if 'analysis_result' not in st.session_state:
 query_params = st.query_params
 job_id_from_query = query_params.get("job_id", [None])[0]
 
+# Enhanced debugging for job_id
+print(f"Debug - job_id from query params: '{job_id_from_query}'")
+print(f"Debug - URL query params: {dict(query_params)}")
+
+# Check if job_id exists in job_listings directly from job_data
+if job_id_from_query:
+    from job_data import get_job_details
+    test_job = get_job_details(job_id_from_query)
+    print(f"Debug - Test job lookup result: {test_job['title'] if test_job else 'Not found'}")
+
 # Update job_id in session state if it changes via query params
 if job_id_from_query and st.session_state.job_id != job_id_from_query:
     st.session_state.job_id = job_id_from_query
@@ -93,17 +103,25 @@ if not st.session_state.job_id:
     st.markdown('<div class="job-grid">', unsafe_allow_html=True)
 
     # Get all job listings for display
-    job_ids = ["it-개발자", "인사-담당자", "재무-회계-담당자", "영업-담당자"]
-    job_grid = st.columns(4)
+    job_ids = ["it-개발자", "인사-담당자", "재무-회계-담당자", "영업-담당자", "디자인-기획자", "마케팅-매니저"]
+    
+    # Create enough columns for all job listings (adjust grid layout based on number of jobs)
+    num_jobs = len(job_ids)
+    cols_per_row = 3  # 3 cards per row looks better than 4 with more details
+    job_grid = st.columns(cols_per_row)
 
     for i, job_id in enumerate(job_ids):
-        print(f"i >>>{i} jo_id >>> {job_id}")
+        print(f"i >>>{i} job_id >>> {job_id}")
         job = get_job_details(job_id)
-
-        with job_grid[i]:
+        
+        # Calculate the correct column index for the current job
+        col_index = i % cols_per_row
+        
+        with job_grid[col_index]:
             st.markdown(f"""
             <div class="job-card">
                 <h3>{job['title']}</h3>
+                <div class="job-company">{job['company']}</div>
                 <div class="job-tag location">{job['location']}</div>
                 <div class="job-tag experience">{job['experience']}</div>
                 <div class="salary">{job['salary']}</div>
@@ -112,14 +130,31 @@ if not st.session_state.job_id:
             </div>
             """,
                         unsafe_allow_html=True)
+            
+            # Add some vertical space between rows
+            if i % cols_per_row == cols_per_row - 1:
+                st.write("")  # Add empty space between rows
 
     st.markdown('</div>', unsafe_allow_html=True)
 
 # Detail page (job details and resume upload)
 else:
     # Get job details
-    job_details = get_job_details(st.session_state.job_id)
-
+    job_details = get_job_details(job_id)
+    
+    # Debug information
+    print(f"Requested job_id: {job_id}")
+    print(f"Retrieved job details: {job_details['title'] if job_details else 'None'}")
+    
+    # 유효하지 않은 job_id인 경우 메인 페이지로 리다이렉트 - 이제 get_job_details에서 항상 기본값을 반환하므로 이 조건은 사용하지 않음
+    # if job_details is None:
+    #     st.error(f"요청하신 직무 정보({job_id})를 찾을 수 없습니다. 다른 직무를 선택해주세요.")
+    #     # 잠시 대기 후 메인 페이지로 리다이렉트
+    #     time.sleep(2)
+    #     st.session_state.job_id = None
+    #     st.query_params.clear()
+    #     st.rerun()
+    
     # Back button - IMPORTANT: Use st.query_params to clear job_id
     if st.button("← 목록으로 돌아가기"):
         st.query_params.clear()
@@ -379,15 +414,19 @@ else:
                             "meets_requirement", False)
                     elif isinstance(rating, int):
                         rating_desc = ""  # Assign an empty string if rating is an integer
-                        meets_requirement = False  # Assume not met if rating is an integer
+                        meets_requirement = True  # Assume not met if rating is an integer
                     else:
                         rating_desc = ""
-                        meets_requirement = False
+                        meets_requirement = True
                     
                     # Only try to get description if rating is a dict
                     if isinstance(rating, dict):
                         rating_desc = rating.get("description", "")
                         meets_requirement = rating.get("meets_requirement", False)
+                    
+                    # 70점 이상이면 자격 요건 충족으로 처리
+                    if rating_score >= 70:
+                        meets_requirement = True
 
                     qual_name = qualification_name_map.get(
                         key, key)
@@ -431,27 +470,58 @@ else:
             competency_ratings = analysis_result.get(
                 "competency_ratings", {})
             if competency_ratings:
-                for key, rating in competency_ratings.items():
-                    # Check if rating is a dictionary before using .get() method
+                # 육각형 그래프(레이더 차트)를 위한 데이터 준비
+                import matplotlib.pyplot as plt
+                import numpy as np
+                import io
+                import base64
+                from matplotlib.path import Path
+                from matplotlib.spines import Spine
+                from matplotlib.transforms import Affine2D
+                import matplotlib.font_manager as fm
+                
+                # 한글 폰트 설정
+                import platform
+                
+                # 운영체제별 기본 한글 폰트 설정
+                if platform.system() == 'Windows':
+                    # Windows - 맑은 고딕 폰트 사용
+                    plt.rcParams['font.family'] = 'Malgun Gothic'
+                    plt.rcParams['axes.unicode_minus'] = False  # 마이너스 기호 깨짐 방지
+                elif platform.system() == 'Darwin':  # macOS
+                    plt.rcParams['font.family'] = 'AppleGothic'
+                    plt.rcParams['axes.unicode_minus'] = False
+                else:  # Linux 등 기타 OS
+                    # 나눔고딕 등이 없는 경우를 대비하여 기본 sans-serif 폰트 사용
+                    plt.rcParams['font.family'] = 'NanumGothic, sans-serif'
+                    plt.rcParams['axes.unicode_minus'] = False
+                
+                # 최대 6개의 역량만 선택 (육각형 시각화를 위해)
+                competency_keys = list(competency_ratings.keys())[:6]
+                competency_scores = []
+                competency_names = []
+                
+                # 데이터 준비
+                for key in competency_keys:
+                    rating = competency_ratings[key]
+                    # Rating 형식 확인 및 점수 추출
                     if isinstance(rating, dict):
                         rating_score = rating.get("score", 0)
                         rating_desc = rating.get("description", "")
                     elif isinstance(rating, (int, float)):
-                        # If rating is a number, use it directly as the score
                         rating_score = rating
-                        rating_desc = ""  # No description for numeric ratings
+                        rating_desc = ""
                     else:
-                        # Default values for unexpected types
                         rating_score = 0
                         rating_desc = ""
                     
-                    # Ensure rating_score is an integer
+                    # 점수를 정수로 변환
                     try:
                         rating_score = int(rating_score)
                     except (ValueError, TypeError):
-                        rating_score = 0  # Default to 0 if conversion fails
-
-                    # 역량 이름을 이해하기 쉽게 변환
+                        rating_score = 0
+                    
+                    # 역량 이름 변환
                     competency_name_map = {
                         "technical_skills": "기술적 역량",
                         "problem_solving": "문제 해결 능력",
@@ -478,40 +548,114 @@ else:
                         "presentation_skills": "프레젠테이션 스킬",
                         "adaptability": "적응력"
                     }
-
-                    competency_name = competency_name_map.get(
-                        key, key)
-
-                    # 진행 표시줄 색상 계산
-                    if rating_score >= 80:
-                        bar_color = "#28a745"  # 녹색
-                    elif rating_score >= 60:
-                        bar_color = "#17a2b8"  # 파란색
-                    else:
-                        bar_color = "#ffc107"  # 노란색
-
-                    st.markdown(f'<div class="competency-item">',
-                                unsafe_allow_html=True)
-                    st.markdown(
-                        f'<div class="competency-name">{competency_name}</div>',
-                        unsafe_allow_html=True)
-
-                    # 진행 표시줄
-                    progress_width = rating_score
-                    st.markdown(f"""
-                    <div class="competency-bar-container">
-                        <div class="competency-bar" style="width: {progress_width}%; background-color: {bar_color};">
-                            <span class="competency-score">{rating_score}%</span>
+                    
+                    competency_name = competency_name_map.get(key, key)
+                    competency_names.append(competency_name)
+                    competency_scores.append(rating_score)
+                
+                # 모든 역량 정보를 표로 표시 (클릭하면 상세 설명 표시)
+                with st.expander("모든 역량 점수 상세 보기"):
+                    for key, rating in competency_ratings.items():
+                        if isinstance(rating, dict):
+                            rating_score = rating.get("score", 0)
+                            rating_desc = rating.get("description", "")
+                        elif isinstance(rating, (int, float)):
+                            rating_score = rating
+                            rating_desc = ""
+                        else:
+                            rating_score = 0
+                            rating_desc = ""
+                            
+                        try:
+                            rating_score = int(rating_score)
+                        except (ValueError, TypeError):
+                            rating_score = 0
+                            
+                        competency_name = competency_name_map.get(key, key)
+                        
+                        # 점수에 따른 바 색상 계산
+                        if rating_score >= 80:
+                            bar_color = "#28a745"  # 녹색
+                        elif rating_score >= 60:
+                            bar_color = "#17a2b8"  # 파란색
+                        else:
+                            bar_color = "#ffc107"  # 노란색
+                            
+                        st.markdown(f"""
+                        <div class="competency-item">
+                            <div class="competency-name">{competency_name}</div>
+                            <div class="competency-bar-container">
+                                <div class="competency-bar" style="width: {rating_score}%; background-color: {bar_color};">
+                                    <span class="competency-score">{rating_score}%</span>
+                                </div>
+                            </div>
+                            <div class="competency-desc">{rating_desc}</div>
                         </div>
+                        """, unsafe_allow_html=True)
+                
+                # 육각형 그래프 그리기
+                N = len(competency_names)
+                if N > 0:  # 데이터가 있는 경우에만 그래프 그리기
+                    # 데이터가 6개보다 적으면 6개까지 확장 (None으로 채움)
+                    while len(competency_names) < 6:
+                        competency_names.append("")
+                        competency_scores.append(None)
+                    
+                    # 각도 설정 (6각형)
+                    angles = np.linspace(0, 2*np.pi, 6, endpoint=False).tolist()
+                    
+                    # 데이터를 닫힌 다각형으로 만들기
+                    competency_scores_normalized = [score/100 if score is not None else 0 for score in competency_scores]
+                    competency_scores_normalized += competency_scores_normalized[:1]  # 첫 데이터를 마지막에 복제하여 닫힌 모양 만들기
+                    angles += angles[:1]  # 첫 각도를 마지막에 복제
+                    
+                    # 그래프 설정
+                    fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+                    
+                    # 그래프 색상 및 라인 설정
+                    ax.plot(angles, competency_scores_normalized, 'o-', linewidth=2, color='#1a73e8')
+                    ax.fill(angles, competency_scores_normalized, alpha=0.25, color='#1a73e8')
+                    
+                    # y축 설정 (0부터 1까지)
+                    ax.set_ylim(0, 1)
+                    
+                    # x축 라벨 설정 (역량 이름)
+                    ax.set_xticks(angles[:-1])  # 마지막 중복 각도 제외
+                    ax.set_xticklabels(competency_names[:6], fontsize=12)  # 6개의 역량 이름
+                    
+                    # 그리드 설정
+                    ax.set_rticks([0.2, 0.4, 0.6, 0.8, 1.0])  # 20%, 40%, 60%, 80%, 100%
+                    ax.set_rgrids([0.2, 0.4, 0.6, 0.8, 1.0], angle=0, labels=['20%', '40%', '60%', '80%', '100%'])
+                    
+                    # 배경 스타일 설정
+                    ax.grid(True, linestyle='-', alpha=0.7)
+                    
+                    # 그래프 제목
+                    ax.set_title('핵심 역량 지표 육각형 그래프', size=15, color='#333', y=1.1)
+                    
+                    # 그래프 이미지를 바이트로 변환하여 HTML에 삽입
+                    buf = io.BytesIO()
+                    fig.savefig(buf, format='png', bbox_inches='tight', transparent=True)
+                    buf.seek(0)
+                    img_str = base64.b64encode(buf.read()).decode('utf-8')
+                    plt.close(fig)  # 메모리 누수 방지
+                    
+                    # 중앙 정렬된 이미지로 표시
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: center; margin: 20px 0;">
+                        <img src="data:image/png;base64,{img_str}" alt="역량 육각형 그래프" style="max-width: 100%; height: auto;">
                     </div>
-                    """,
-                                unsafe_allow_html=True)
-
-                    st.markdown(
-                        f'<div class="competency-desc">{rating_desc}</div>',
-                        unsafe_allow_html=True)
-                    st.markdown(f'</div>', unsafe_allow_html=True)
-
+                    """, unsafe_allow_html=True)
+                    
+                    # 범례 표시
+                    st.markdown("""
+                    <div style="text-align: center; margin-bottom: 30px; color: #666; font-size: 14px;">
+                        그래프가 넓게 퍼질수록 해당 역량이 높다는 것을 의미합니다. 상세 내용은 '모든 역량 점수 상세 보기'에서 확인하세요.
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.warning("핵심 역량 데이터가 없습니다.")
+                
             st.markdown('</div>', unsafe_allow_html=True)
 
             # 강점과 개선 영역

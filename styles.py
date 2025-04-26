@@ -86,6 +86,12 @@ def display_custom_css():
             margin-bottom: 15px;
         }
         
+        .job-company {
+            color: #666;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
         .job-tag {
             display: inline-block;
             padding: 3px 8px;

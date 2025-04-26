@@ -39,6 +39,13 @@ def get_qualification_metrics(job_title):
             "certificate": "필요없음(우대시 유통관리사 등)",
             "experience": "인턴/아르바이트 매우 중요 (세일즈)",
             "skills": "커뮤니케이션, 협상 스킬, 동아리, 판매량 대회 등 우대"
+        },
+        "IT 개발자": {
+            "academic": "전공 선호(컴퓨터공학, 소프트웨어 관련), 학점 3.0↑",
+            "language": "영어(TOEIC 750+), 중요",
+            "certificate": "정보처리기사, 클라우드 자격증 등 우대",
+            "experience": "인턴 또는 프로젝트 경험 필수",
+            "skills": "프로그래밍 언어(React, TypeScript 등), 버전 관리 시스템"
         }
     }
 
@@ -78,11 +85,11 @@ def get_qualification_metrics(job_title):
         }
     }
 
+    # 요청한 직무 제목에 대한 데이터 반환
+    # 없는 경우 빈 딕셔너리 반환 (기본값을 사용하지 않도록 수정)
     return {
-        "qualifications":
-        qualification_metrics.get(job_title, {}),
-        "competencies":
-        competency_metrics.get(job_title, competency_metrics["IT 개발자"])
+        "qualifications": qualification_metrics.get(job_title, {}),
+        "competencies": competency_metrics.get(job_title, {})
     }
 
 
@@ -449,73 +456,86 @@ def get_test_analysis(job_title):
             "success_rate":
             65,
             "strengths": [
-                "고객 관계 구축 및 유지 능력 우수", "설득력 있는 제안 및 프레젠테이션 스킬",
-                "영업 목표 달성에 대한 높은 의지", "시장 동향 파악 및 분석 능력",
-                "고객 요구 사항 파악 및 맞춤형 솔루션 제안 역량"
+                "고객 관계 구축 및 유지 능력 우수",
+                "협상 및 계약 체결 경험 보유",
+                "시장 동향 파악 및 경쟁사 분석 능력",
+                "목표 지향적인 업무 태도",
+                "명확한 커뮤니케이션 능력"
             ],
             "improvement_areas": [
-                "B2B 영업 경험 강화 필요", "CRM 시스템 활용 능력 보강 필요", "복잡한 계약 협상 경험 제한적",
-                "영업 파이프라인 관리 전략 개선 필요", "기술적 제품 지식 심화 필요"
+                "영업 전략 수립 경험 강화 필요",
+                "고객 니즈 파악을 위한 질문 기술 향상 필요",
+                "제안서 작성 능력 개선 필요",
+                "거절 처리 및 대응 능력 강화 필요",
+                "디지털 마케팅 도구 활용 역량 부족"
             ],
             "recommendations": [
-                "B2B 영업 사례나 관련 교육 이수 내용 추가", "CRM 도구 활용 경험과 구체적인 성과 사례 강조",
-                "협상 스킬 향상을 위한 관련 과정 이수 고려", "영업 프로세스 최적화 경험 구체적으로 기술",
-                "제품 관련 기술 교육 수료 및 지식 강화"
+                "다양한 영업 성공 사례 구체적으로 이력서에 추가",
+                "고객 유치 및 유지 전략에 대한 성과 수치화하여 제시",
+                "영업 관련 교육 과정 이수 또는 관련 자격증 취득 고려",
+                "제안서 작성 및 프레젠테이션 역량 강화 활동 추가",
+                "CRM 시스템 활용 경험 강조"
             ],
             "competency_ratings": {
                 "client_relationship": {
-                    "score": 85,
-                    "description": "고객과의 신뢰 관계 구축 및 유지에 탁월한 능력 보유"
+                    "score": 80,
+                    "description": "고객과의 관계 형성 및 유지 능력이 우수함"
                 },
                 "negotiation": {
-                    "score": 70,
-                    "description": "기본적인 협상 기술은 있으나 복잡한 계약 협상 경험 부족"
+                    "score": 75,
+                    "description": "기본적인 협상 기술은 갖추었으나 복잡한 계약 협상 경험 부족"
                 },
                 "market_knowledge": {
-                    "score": 75,
-                    "description": "시장 동향 파악 능력은 좋으나 제품 기술적 이해 보완 필요"
+                    "score": 65,
+                    "description": "일반적인 시장 지식은 있으나 산업별 전문 지식 강화 필요"
                 },
                 "goal_orientation": {
-                    "score": 80,
-                    "description": "높은 목표 달성 의지와 성과 지향적 태도 보유"
+                    "score": 85,
+                    "description": "목표 달성을 위한 높은 열정과 꾸준한 성과를 보여줌"
                 },
                 "presentation_skills": {
-                    "score": 85,
-                    "description": "설득력 있는 제안 능력과 효과적인 프레젠테이션 스킬 보유"
+                    "score": 60,
+                    "description": "기본적인 발표 능력은 있으나 설득력 있는 제안 기술 향상 필요"
                 },
                 "adaptability": {
-                    "score": 75,
-                    "description": "다양한 상황에 적응하는 능력은 있으나 위기 상황 대처 경험 제한적"
+                    "score": 70,
+                    "description": "다양한 상황에 적응할 수 있는 유연성 보유"
                 }
             },
             "qualification_ratings": {
                 "academic": {
                     "score": 70,
-                    "description": "비관련 전공이지만 학점 3.0으로 기준 충족",
+                    "description": "경영학 전공, 학점 2.9로 기준 근접",
                     "meets_requirement": True
                 },
                 "language": {
                     "score": 75,
-                    "description": "TOEIC 750점으로 기준 충족",
+                    "description": "TOEIC 780점으로 기준 충족",
                     "meets_requirement": True
                 },
                 "certificate": {
-                    "score": 65,
-                    "description": "관련 자격증 없으나 필수 요건 아님",
+                    "score": 60,
+                    "description": "관련 자격증 없음",
                     "meets_requirement": True
                 },
                 "experience": {
-                    "score": 60,
-                    "description": "유통업체 아르바이트 경험 있으나 직접적인 세일즈 경험 부족",
+                    "score": 65,
+                    "description": "판매 관련 아르바이트 경험 있으나 정규 영업 경험 부족",
                     "meets_requirement": False
                 },
                 "skills": {
-                    "score": 80,
-                    "description": "커뮤니케이션 스킬 우수, 동아리 활동에서 리더십 경험 보유",
+                    "score": 75,
+                    "description": "소통 능력과 설득력은 우수하나 CRM 시스템 활용 경험 부족",
                     "meets_requirement": True
                 }
             }
         }
     }
-
-    return test_analyses.get(job_title, test_analyses["IT 개발자"])
+    
+    # 요청된 직무의 분석 결과가 있으면 반환
+    if job_title in test_analyses:
+        return test_analyses[job_title]
+    else:
+        # 요청된 직무의 분석 결과가 없는 경우 기본 분석 결과 반환
+        st.warning(f"'{job_title}' 직무의 테스트 분석 데이터가 없습니다. 기본 분석 결과를 제공합니다.")
+        return test_analyses.get("IT 개발자", {})
